@@ -1,9 +1,16 @@
 const { request } = require("express");
 const express = require("express");
+const cors = require('cors');
 const app = express();
-const port = 8000;
 const connection = require("./config");
 
+const { SERVER_PORT, CLIENT_URL } = process.env;
+
+app.use(
+  cors({
+    origin: CLIENT_URL,
+  })
+);
 app.use(express.json());
 
 connection.connect(function (err) {
@@ -13,6 +20,25 @@ connection.connect(function (err) {
   }
   console.log("connected as id " + connection.threadId);
 });
+
+app.get("/users", (req, res) => {
+    connection.query(
+      "SELECT * FROM user WHERE nickname = ?",
+      [req.query.nickname],
+      (err, result) => {
+        if (err) {
+          res.status(500).send(err);
+        } else if (result.length === 0) {
+          res
+            .status(404)
+            .send("Aucun utilisateur ne s'est enregistré à ce nom");
+        } else {
+          res.status(200).json(result);
+        }
+      }
+    );
+  });
+
 
 // En tant qu'utilisateur, je peux consulter tous les livres que j'ai enregistré d'un auteur particulier
 app.get("/users/:user_id/books/authors/:author_id", (req, res) => {
@@ -67,6 +93,7 @@ app.get("/users/:id/books/favorites", (req, res) => {
   );
 });
 
+
 /* En tant qu'utilisateur, je peux filtrer ma collection par genre, auteur, etc...
 En tant qu'utilisateur, je peux ajouter ou supprimer un album de mes favoris
 En tant qu'utilisateur, je peux supprimer un album de ma collection */
@@ -86,6 +113,6 @@ app.get("/books/:id", (req, res) => {
   );
 });
 
-app.listen(port, () => {
-  console.log(`server is running on port ${port}`);
+app.listen(SERVER_PORT, () => {
+  console.log(`server is running on port ${SERVER_PORT}`);
 });
