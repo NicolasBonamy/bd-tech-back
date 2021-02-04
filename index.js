@@ -1,6 +1,6 @@
 const { request } = require("express");
 const express = require("express");
-const cors = require('cors');
+const cors = require("cors");
 const app = express();
 const connection = require("./config");
 
@@ -22,23 +22,20 @@ connection.connect(function (err) {
 });
 
 app.get("/users", (req, res) => {
-    connection.query(
-      "SELECT * FROM user WHERE nickname = ?",
-      [req.query.nickname],
-      (err, result) => {
-        if (err) {
-          res.status(500).send(err);
-        } else if (result.length === 0) {
-          res
-            .status(404)
-            .send("Aucun utilisateur ne s'est enregistré à ce nom");
-        } else {
-          res.status(200).json(result);
-        }
+  connection.query(
+    "SELECT * FROM user WHERE nickname = ?",
+    [req.query.nickname],
+    (err, result) => {
+      if (err) {
+        res.status(500).send(err);
+      } else if (result.length === 0) {
+        res.status(404).send("Aucun utilisateur ne s'est enregistré à ce nom");
+      } else {
+        res.status(200).json(result);
       }
-    );
-  });
-
+    }
+  );
+});
 
 // En tant qu'utilisateur, je peux consulter tous les livres que j'ai enregistré d'un auteur particulier
 app.get("/users/:user_id/books/authors/:author_id", (req, res) => {
@@ -76,6 +73,34 @@ app.get("/users/:id/books", (req, res) => {
   );
 });
 
+// En tant qu'utilisateur, je peux ajouter un livre
+app.post("/users/:id/books", (req, res) => {
+  const {
+    title,
+    published_date,
+    cover_src,
+    page_count,
+    author_id,
+    user_id,
+  } = req.body;
+  connection.query(
+    "INSERT into comic_book(title, published_date, cover_src, page_count,author_id, user_id) VALUES(?, ?, ?, ?, ?, ?)",
+    [title, published_date, cover_src, page_count,author_id, user_id],
+    (err, result) => {
+      if (err) {
+        res.status(500).send(err);
+      } else if (result.affectedRows < 1) {
+        res.sendStatus(400);
+      } else {
+        res.status(201).json({
+          id: result.insertId,
+          ...req.body,
+        });
+      }
+    }
+  );
+});
+
 // En tant qu'utilisateur, je peux consulter tous les livres favoris que j'ai enregistré
 app.get("/users/:id/books/favorites", (req, res) => {
   connection.query(
@@ -93,10 +118,54 @@ app.get("/users/:id/books/favorites", (req, res) => {
   );
 });
 
+// En tant qu'utilisateur, je peux modifier la couverture d'un album
+app.put("/users/:user_id/books/:book_id/cover", (req, res) => {
+  const { cover_src } = req.body;
+  connection.query(
+    "UPDATE comic_book SET cover_src = ? WHERE user_id = ? AND id = ?",
+    [cover_src, req.params.user_id, req.params.book_id],
+    (err, result) => {
+      if (err) {
+        res.status(500).send(err);
+      } else {
+        console.log(req.body);
+        res.sendStatus(200);
+      }
+    }
+  );
+});
 
-/* En tant qu'utilisateur, je peux filtrer ma collection par genre, auteur, etc...
-En tant qu'utilisateur, je peux ajouter ou supprimer un album de mes favoris
-En tant qu'utilisateur, je peux supprimer un album de ma collection */
+// En tant qu'utilisateur, je peux supprimer un album de ma collection
+app.delete("/users/:user_id/books/:book_id", (req, res) => {
+  connection.query(
+    "DELETE FROM comic_book WHERE user_id = ? AND id = ?",
+    [req.params.user_id, req.params.book_id],
+    (err, result) => {
+      if (err) {
+        res.status(500).send(err);
+      } else {
+        res.sendStatus(200);
+      }
+    }
+  );
+});
+
+// En tant qu'utilisateur, je peux ajouter ou supprimer un album de mes favoris
+app.put("/users/:user_id/books/:book_id", (req, res) => {
+  connection.query(
+    "UPDATE comic_book SET favorite = !favorite WHERE user_id = ? AND id = ?",
+    [req.params.user_id, req.params.book_id],
+    (err, result) => {
+      if (err) {
+        res.status(500).send(err);
+      } else {
+        res.sendStatus(200);
+      }
+    }
+  );
+});
+
+// En tant qu'utilisateur, je peux consulter le détail d'un album
 app.get("/books/:id", (req, res) => {
   connection.query(
     "SELECT * FROM comic_book WHERE id = ?",
